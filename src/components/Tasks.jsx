@@ -1,106 +1,87 @@
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
-const mockTasks = [
-  {
-    id: 1,
-    title: "Centralized Exchange",
-    subtitle: "Onboarding New User",
-    tag1: "Timed Task",
-    tag2: "Sign up & KYC",
-  },
-  {
-    id: 2,
-    title: "Centralized Exchange",
-    subtitle: "Meet Trading Volume Requiremnt",
-    tag1: "Timed Task",
-    tag2: "Deposit & Trade",
-  },
-  {
-    id: 3,
-    title: "Smart Contract Review",
-    subtitle: "Security Analysis",
-    tag1: "Hot",
-    tag2: "Advanced",
-  },
-  {
-    id: 4,
-    title: "DeFi Simulation",
-    subtitle: "Liquidity Training",
-    tag1: "New",
-    tag2: "Beginner",
-  },
-];
+function Tasks({ user, setPoints }) {
+  const navigate = useNavigate();
+  const [quests, setQuests] = useState([]);
 
-function Tasks({ setPoints }) {
+  // Fetch quests
+  useEffect(() => {
+    axios.get("http://localhost:5000/api/quest")
+      .then(res => setQuests(res.data))
+      .catch(err => console.log(err));
+  }, []);
+
+  // Complete task
+  const handleTaskClick = async (taskId) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const res = await axios.post(
+        "http://localhost:5000/api/users/complete-task",
+        { taskId }, // ✅ keep only this
+        {
+          headers: {
+            Authorization: token // ✅ add this
+          }
+        }
+      );
+
+      setPoints(res.data.user.points);
+      alert("✅ Task completed!");
+
+    } catch (error) {
+      alert(error.response?.data?.error || "Error");
+    }
+  };
+  const openTask = (task) => {
+    setSelectedTask(task);
+  };
+
+  if (!user) return <p className="text-white">No user found...</p>;
+
   return (
-    <div className="space-y-6">
-      
+    <div className="space-y-8">
+
       {/* HEADER */}
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-white">
+        <h2 className="text-2xl font-bold text-white">
           Recommended Projects
         </h2>
-
-        <button className="text-sm text-gray-400 hover:text-white">
-          View All
-        </button>
       </div>
 
-      {/* TASK GRID */}
-      <div className="grid grid-cols-2 gap-5">
-
-        {mockTasks.map((task) => (
+      {/* QUEST GRID */}
+      <div className="space-y-6">
+        {quests.map((quest) => (
           <motion.div
-            key={task.id}
+            key={quest._id}
             whileHover={{ scale: 1.03 }}
-            className="bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded-xl p-5 transition cursor-pointer hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]"
+            onClick={() => navigate(`/quest/${quest._id}`)}
+            className="bg-[#1A1A1A] p-6 rounded-xl cursor-pointer border border-zinc-800 hover:border-orange-500 transition"
           >
 
-            {/* TAGS */}
-            <div className="flex justify-between mb-4 text-xs">
+            <span className="text-xs px-2 py-1 rounded bg-orange-500/20 text-orange-400">
+              {quest.type}
+            </span>
 
-              <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded">
-                {task.tag1}
-              </span>
+            <h3 className="text-white font-bold text-lg mt-2">
+              {quest.type === "social" && "📱 Social Tasks"}
+              {quest.type === "trading" && "📊 Trading Tasks"}
+              {quest.type === "onboarding" && "🚀 Getting Started"}
 
-              <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded">
-                {task.tag2}
-              </span>
+              {!quest.type && quest.title} {/* 👈 fallback */}
+            </h3>
 
-            </div>
-
-            {/* CONTENT */}
-            <div className="space-y-2">
-              <p className="text-xs text-gray-500">Souq Connect</p>
-
-              <h3 className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">
-  {task.title}
-</h3>
-
-              <p className="text-sm text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400 drop-shadow-[0_0_6px_rgba(255,0,150,0.4)]">
-  {task.subtitle}
-</p>
-            </div>
-
-            {/* IMAGE / VISUAL BLOCK */}
-            <div className="mt-4 h-24 rounded-lg bg-gradient-to-r from-zinc-800 to-zinc-700 flex items-center justify-center text-gray-500 text-xs">
-              Preview
-            </div>
-
-            {/* ACTION BUTTON */}
-            <button
-              onClick={() => setPoints((prev) => prev + 50)}
-              className="mt-4 w-full py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition text-sm"
-            >
-              Start Task
-            </button>
-
+            <p className="text-gray-400 text-sm mt-1">
+              {quest.description}
+            </p>
           </motion.div>
         ))}
-
       </div>
+
     </div>
   );
-}
-
+};
 export default Tasks;
