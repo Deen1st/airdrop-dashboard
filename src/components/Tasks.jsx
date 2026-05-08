@@ -40,7 +40,7 @@ function Tasks({ user, setPoints }) {
     setSelectedTask(task);
   };
 
-  if (!user) return <p className="text-white">No user found...</p>;
+  if (!user) return <p className="text-white">SIGN IN TO ACCESS QUESTS...</p>;
 
   return (
     <div className="space-y-8">
