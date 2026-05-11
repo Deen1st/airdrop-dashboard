@@ -12,6 +12,12 @@ import toast from "react-hot-toast";
 import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import Settings from "./Settings";
 import { useNavigate } from "react-router-dom";
+import {
+  getNonce,
+  walletAuth,
+  googleAuth,
+} from "./services/authServices";
+
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -20,6 +26,7 @@ function App() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
   const connectWallet = async () => {
     try {
       setLoading(true);
@@ -48,72 +55,47 @@ function App() {
       const wallet = accounts[0];
       console.log("STEP 4: Wallet =", wallet);
 
-      // 🔥 NEW STEP — GET NONCE
+      //  NEW STEP — GET NONCE
       console.log("STEP 5: Getting nonce...");
-      const nonceRes = await axios.post(
-        "http://localhost:5000/api/users/nonce",
-        { wallet }
-      );
+      const nonceRes = await getNonce(wallet);
 
-      const message = nonceRes.data.message;
+      const message = nonceRes.message;
 
-      // 🔥 NEW STEP — SIGN MESSAGE
+      //  NEW STEP — SIGN MESSAGE
       console.log("STEP 6: Signing message...");
       const signature = await window.ethereum.request({
         method: "personal_sign",
         params: [wallet, message],
       });
 
-      // 🔥 NEW STEP — SEND SIGNATURE
+      //  NEW STEP — SEND SIGNATURE
       console.log("STEP 7: Sending signature to backend...");
-      const res = await axios.post(
-        "http://localhost:5000/api/users/auth",
-        { wallet, signature },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+
+      const res = await walletAuth(
+        wallet,
+        signature
       );
 
-      console.log("✅ BACKEND RESPONSE:", res.data);
+      console.log(" BACKEND RESPONSE:", res);
 
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
+      localStorage.setItem("token", res.token);
 
-      setUser(res.data.user);
+      localStorage.setItem(
+        "user",
+        JSON.stringify(res.user)
+      );
 
+      setUser(res.user);
       toast.success("Wallet connected securely!");
 
     } catch (err) {
-      console.error("❌ FULL ERROR:", err);
-      console.error("❌ RESPONSE:", err.response?.data);
+      console.error(" FULL ERROR:", err);
+      console.error(" RESPONSE:", err.response?.data);
 
       toast.error("Secure login failed");
 
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogleUnlink = async () => {
-    try {
-      const res = await axios.post(
-        "http://localhost:5000/api/users/unlink-google",
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      setUser(res.data.user);
-      toast.success("Google unlinked");
-
-    } catch (err) {
-      console.error("❌ UNLINK ERROR:", err.response?.data);
-      toast.error(err.response?.data?.error || "Failed to unlink");
     }
   };
 
@@ -132,7 +114,7 @@ function App() {
       const token = localStorage.getItem("token");
       const storedUser = localStorage.getItem("user");
 
-      // ✅ ONLY restore if BOTH exist
+      //  ONLY restore if BOTH exist
       if (token && storedUser) {
         setUser(JSON.parse(storedUser));
       } else {
@@ -219,8 +201,8 @@ function App() {
               onClick={connectWallet}
               disabled={loading}
               className={`px-4 py-2 rounded-full font-semibold ${loading
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-[#FFD700] text-black"
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-[#FFD700] text-black"
                 }`}
             >
               {loading ? "Connecting..." : "Connect Wallet"}

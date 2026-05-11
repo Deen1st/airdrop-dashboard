@@ -3,6 +3,12 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { useEffect } from "react";
 import Avatar from "./components/Avatar";
+import { linkGoogle } from "./services/socialServices";
+import {
+  startXAuth,
+  unlinkX,
+} from "./services/socialServices";
+import { fetchMe } from "./services/userServices";
 
 const maskEmail = (email) => {
   if (!email) return "";
@@ -34,44 +40,45 @@ const Settings = () => {
         return;
       }
 
-      const tokenClient = window.google.accounts.oauth2.initTokenClient({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        scope: "openid email profile",
-        prompt: "select_account",
-        callback: async (response) => {
-          try {
-            const res = await axios.post(
-              "http://localhost:5000/api/users/link-google",
-              { token: response.access_token },
-              {
-                headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-              }
-            );
+      const tokenClient =
+        window.google.accounts.oauth2.initTokenClient({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          scope: "openid email profile",
+          prompt: "select_account",
 
-            setUser(res.data.user);
-            toast.success("Google linked!");
+          callback: async (response) => {
+            try {
+              const res = await linkGoogle(
+                response.access_token
+              );
 
-          } catch (err) {
-            console.error(err.response?.data);
-            toast.error("Google link failed");
-          }
-        },
-      });
+              console.log("GOOGLE RESPONSE:", res);
+
+              setUser(res.user);
+              toast.success("Google linked!");
+
+            } catch (err) {
+              console.error(
+                err.response?.data || err.message
+              );
+
+              toast.error("Google link failed");
+            }
+          },
+        });
 
       tokenClient.requestAccessToken();
 
     } catch (err) {
-      console.error(err);
-      toast.error("Google link failed");
+      console.error(err); setUser(res.data.user);
+
+      toast.error("Google auth failed");
     }
   };
-
   const handleGoogleUnlink = async () => {
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/users/unlink-google",
+        "http://localhost:5000/api/socials/unlink-google",
         {},
         {
           headers: {
@@ -81,25 +88,21 @@ const Settings = () => {
       );
 
       setUser(res.data.user);
+
       toast.success("Google unlinked");
 
     } catch (err) {
+      console.error(err);
+
       toast.error("Failed to unlink");
     }
   };
 
   const handleXLink = async () => {
     try {
-      const res = await axios.get(
-        "http://localhost:5000/api/users/x/start",
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const res = await startXAuth();
 
-      const popup = window.open(res.data.url, "_blank", "width=500,height=600");
+      const popup = window.open(res.url, "_blank", "width=500,height=600");
 
       window.addEventListener("message", (event) => {
         if (event.data?.success) {
@@ -115,17 +118,9 @@ const Settings = () => {
 
   const handleXUnlink = async () => {
     try {
-      const res = await axios.post(
-        "http://localhost:5000/api/users/unlink-x",
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const res = await unlinkX();
 
-      setUser(res.data.user);
+      setUser(res.user || res);
       toast.success("X unlinked");
 
     } catch (err) {
@@ -137,7 +132,7 @@ const Settings = () => {
     const token = localStorage.getItem("token");
 
     window.open(
-      `http://localhost:5000/api/users/discord?token=${token}`,
+      `http://localhost:5000/api/socials/discord?token=${token}`,
       "_blank",
       "width=500,height=700"
     );
@@ -146,7 +141,7 @@ const Settings = () => {
   const handleDiscordUnlink = async () => {
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/users/unlink-discord",
+        "http://localhost:5000/api/socials/unlink-discord",
         {},
         {
           headers: {
@@ -155,8 +150,8 @@ const Settings = () => {
         }
       );
 
-      setUser(res.data.user);
 
+      setUser(res.data.user);
       toast.success("Discord unlinked");
 
     } catch (err) {
@@ -170,7 +165,7 @@ const Settings = () => {
         const token = localStorage.getItem("token");
 
         const res = await axios.post(
-          "http://localhost:5000/api/users/link-telegram",
+          "http://localhost:5000/api/socials/link-telegram",
           telegramUser,
           {
             headers: {
@@ -223,7 +218,7 @@ const Settings = () => {
       const token = localStorage.getItem("token");
 
       await axios.put(
-        "http://localhost:5000/api/users/unlink-telegram",
+        "http://localhost:5000/api/socials/unlink-telegram",
         {},
         {
           headers: {
@@ -254,16 +249,9 @@ const Settings = () => {
         const token = localStorage.getItem("token");
 
         try {
-          const res = await axios.get(
-            "http://localhost:5000/api/users/me",
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
+          const user = await fetchMe();
 
-          setUser(res.data);
+          setUser(user);
         } catch (err) {
           console.log("Failed to refresh user");
         }
@@ -282,16 +270,9 @@ const Settings = () => {
       if (event.data?.success) {
         const token = localStorage.getItem("token");
 
-        const res = await axios.get(
-          "http://localhost:5000/api/users/me",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const user = await fetchMe();
 
-        setUser(res.data);
+        setUser(user);
       }
     };
 
@@ -335,7 +316,7 @@ const Settings = () => {
             {/* Avatar */}
             {user?.googleAvatar ? (
               <img
-                src={user?.avatar}
+                src={user?.googleAvatar}
                 alt="Google Avatar"
                 className="w-8 h-8 rounded-full object-cover"
               />
@@ -568,6 +549,6 @@ const Settings = () => {
     </div>
 
   );
-};
+}
 
 export default Settings;
