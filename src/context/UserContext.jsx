@@ -12,5 +12,5 @@ export const UserProvider = ({ children }) => {
   );
 };
 
-// custom hook (cleaner usage)
+
 export const useUser = () => useContext(UserContext);

@@ -64,14 +64,14 @@ router.post("/auth", authLimiter, async (req, res) => {
 
         const message = `Login to SouqConnect\nNonce: ${user.nonce}`;
 
-        // 🔐 verify signature
+        //  verify signature
         const recoveredAddress = ethers.verifyMessage(message, signature);
 
         if (recoveredAddress.toLowerCase() !== normalizedWallet) {
             return res.status(401).json({ error: "Invalid signature" });
         }
 
-        // 🔥 rotate nonce (CRITICAL)
+        //  rotate nonce (CRITICAL)
         user.nonce = Math.random().toString(36).substring(2, 15);
         await user.save();
 
